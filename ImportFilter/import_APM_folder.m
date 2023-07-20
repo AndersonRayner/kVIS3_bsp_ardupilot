@@ -22,6 +22,11 @@ function [] = import_APM_folder(hObject, ~)
 
 %% Select APM Log folder
 root_directory = uigetdir(pwd,'Import APM Folder');
+
+if (root_directory == 0)
+    return;
+end
+
 files = dir([root_directory,'\**\*.bin']);
 
 % Import each file

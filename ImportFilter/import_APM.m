@@ -208,12 +208,35 @@ for ii = 1:numel(data_stream_names) % change to a 1 later
                 end
                 
                 % Check to see if the data is valid
-                if (max(DAT(:,1)) > 1e6)
+                time_too_big = 1e8;
+                bad_locs = find(DAT(:,1) > time_too_big);
+                if ~isempty(bad_locs)
                     % Data is bad
-                    fprintf('\t\t\t\t\t\t  Channel corruption detected, removing bad points\n');
-                    locs = find(DAT(:,1) < 1e6);
-                    DAT = DAT(locs,:);
+                    fprintf('\t\t\t\t\t\t  Channel corruption detected, removing bad points (%d/%d)\n', ...
+                        numel(bad_locs),numel(DAT(:,1)));
+                    DAT(bad_locs,:) = [];
                 end
+
+                % A bad channel might occur once and cause no data to be
+                % retained.  In this case, skip this instance
+                if size(DAT,1) == 0
+                    continue
+                end
+                % Quick hacks
+                %DAT(:,1) = DAT(:,1) - DAT(1,1);
+
+                % No jumping back in time
+                kk = 2;
+                while (kk <= numel(DAT(:,1)))
+                    if DAT(kk-1,1) > DAT(kk,1)
+                        DAT(kk,:) = [];
+                    else
+                        kk = kk+1;
+                    end
+                end
+
+%                 for kk = 2:numel(DAT(:,1))
+%                     if 
                 
                 % Add additional fields to certain groups
                 if (strcmp(groupName,'NKF1') || ...
@@ -233,7 +256,7 @@ for ii = 1:numel(data_stream_names) % change to a 1 later
                     
                 end
                 
-                if (strcmp(groupName,'BAT'))
+                if (strcmp(groupName,'BAT') || strcmp(groupName,'CURR'))
                     
                     varNames  = [ varNames', 'Power']';
                     varUnits  = [ varUnits', 'W' ]';
@@ -405,36 +428,40 @@ modeReasons(end+1) = modeReasons(end);
 
 % Loop through modeTimes and store data
 eventNumber = 0;
-for ii = 1:numel(modeTimes)-1
-    % Get info
-    t_in  = modeTimes(ii);
-    t_out = modeTimes(ii+1);
-    
-    % Check if change was valid
-    if t_out-t_in > 1.0
-        
-        modeReason = modes_Reason(modeReasons(ii));
-        
-        % TODO:  Need to work out if using Copter/Plane/Rover etc
-        %        Defaulting to COPTER for now though
-        if contains(fds.msg.MSG(1,:),'ArduCopter')
-            modeType = modes_ArduCopter(modeNumbers(ii));
-        elseif contains(fds.msg.MSG(1,:),'ArduPlane')
-            modeType = modes_ArduPlane(modeNumbers(ii));
-        else
-            modeType = sprintf('Mode %d',modeNumbers(ii));
-        end
-        
-        % Fill out eList
-        eventNumber = eventNumber+1;
-        eList(eventNumber).type = modeType;
-        eList(eventNumber).start= t_in;
-        eList(eventNumber).end  = t_out;
-        eList(eventNumber).description = modeReason;
-        eList(eventNumber).plotDef='';
-    end
-        
-end
+% for ii = 1:numel(modeTimes)-1
+%     % Get info
+%     t_in  = modeTimes(ii);
+%     t_out = modeTimes(ii+1);
+%     
+%     % Check if change was valid
+%     if t_out-t_in > 1.0
+%         
+%         try
+%             modeReason = modes_Reason(modeReasons(ii));
+%         catch
+%             modeReason = 'Unknown';
+%         end
+%         
+%         % TODO:  Need to work out if using Copter/Plane/Rover etc
+%         %        Defaulting to COPTER for now though
+%         if contains(fds.msg.MSG(1,:),'ArduCopter')
+%             modeType = modes_ArduCopter(modeNumbers(ii));
+%         elseif contains(fds.msg.MSG(1,:),'ArduPlane')
+%             modeType = modes_ArduPlane(modeNumbers(ii));
+%         else
+%             modeType = sprintf('Mode %d',modeNumbers(ii));
+%         end
+%         
+%         % Fill out eList
+%         eventNumber = eventNumber+1;
+%         eList(eventNumber).type = modeType;
+%         eList(eventNumber).start= t_in;
+%         eList(eventNumber).end  = t_out;
+%         eList(eventNumber).description = modeReason;
+%         eList(eventNumber).plotDef='';
+%     end
+%         
+% end
 
 % Add eList to eventList
 if exist('eList','var')
